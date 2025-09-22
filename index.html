@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lead Generation CRM</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { 
+            Phone, 
+            Mail, 
+            Calendar, 
+            Clock,
+            Plus,
+            Bell,
+            User,
+            MapPin,
+            Edit3,
+            BarChart3,
+            Home,
+            Users,
+            CheckCircle,
+            XCircle,
+            AlertCircle,
+            RotateCcw
+        } = lucide;
+
+        const LeadGenCRM = () => {
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [showAddLead, setShowAddLead] = useState(false);
+            const [selectedLead, setSelectedLead] = useState(null);
+            
+            const statusOptions = [
+                { value: 'new', label: 'New Lead', color: 'bg-blue-500', textColor: 'text-white' },
+                { value: 'waiting-customer', label: 'Waiting for Customer', color: 'bg-yellow-500', textColor: 'text-white' },
+                { value: 'waiting-tech', label: 'Waiting for Technician', color: 'bg-orange-500', textColor: 'text-white' },
+                { value: 'booked', label: 'Appointment Booked', color: 'bg-green-500', textColor: 'text-white' },
+                { value: 'completed', label: 'Completed', color: 'bg-gray-600', textColor: 'text-white' },
+                { value: 'canceled', label: 'Canceled', color: 'bg-red-500', textColor: 'text-white' },
+                { value: 'rescheduled', label: 'Rescheduled', color: 'bg-purple-500', textColor: 'text-white' }
+            ];
+
+            const technicians = [
+                'Mike Johnson - HVAC',
+                'Sarah Wilson - Plumbing', 
+                'David Brown - Electrical',
+                'Lisa Davis - General Repair',
+                'Tom Anderson - Roofing'
+            ];
+
+            const [leads, setLeads] = useState([
+                {
+                    id: 1,
+                    customerName: 'John Smith',
+                    phone: '(555) 123-4567',
+                    email: 'john.smith@email.com',
+                    address: '123 Oak Street, Denver, CO 80202',
+                    serviceNeeded: 'HVAC Repair',
+                    status: 'new',
+                    dateAdded: new Date('2024-01-20T10:30:00'),
+                    appointmentDate: null,
+                    appointmentTime: '',
+                    technician: '',
+                    notes: 'Air conditioner not cooling properly. Customer mentioned strange noises.',
+                    lastUpdated: new Date('2024-01-20T10:30:00')
+                },
+                {
+                    id: 2,
+                    customerName: 'Maria Garcia',
+                    phone: '(555) 234-5678',
+                    email: 'maria.garcia@email.com',
+                    address: '456 Pine Avenue, Boulder, CO 80301',
+                    serviceNeeded: 'Plumbing',
+                    status: 'waiting-customer',
+                    dateAdded: new Date('2024-01-20T09:15:00'),
+                    appointmentDate: null,
+                    appointmentTime: '',
+                    technician: '',
+                    notes: 'Kitchen sink leak under cabinet. Needs quote first.',
+                    lastUpdated: new Date('2024-01-20T11:45:00')
+                },
+                {
+                    id: 3,
+                    customerName: 'Robert Johnson',
+                    phone: '(555) 345-6789',
+                    email: 'rob.johnson@email.com',
+                    address: '789 Elm Drive, Lakewood, CO 80226',
+                    serviceNeeded: 'Electrical',
+                    status: 'booked',
+                    dateAdded: new Date('2024-01-19T14:20:00'),
+                    appointmentDate: '2024-01-22',
+                    appointmentTime: '10:00 AM',
+                    technician: 'David Brown - Electrical',
+                    notes: 'Outlet not working in master bedroom. Safety concern.',
+                    lastUpdated: new Date('2024-01-20T08:30:00')
+                },
+                {
+                    id: 4,
+                    customerName: 'Jennifer Lee',
+                    phone: '(555) 456-7890',
+                    email: 'jen.lee@email.com',
+                    address: '321 Maple Lane, Aurora, CO 80012',
+                    serviceNeeded: 'Roofing',
+                    status: 'completed',
+                    dateAdded: new Date('2024-01-18T16:45:00'),
+                    appointmentDate: '2024-01-20',
+                    appointmentTime: '9:00 AM',
+                    technician: 'Tom Anderson - Roofing',
+                    notes: 'Roof inspection after hail storm. Minor repairs completed.',
+                    lastUpdated: new Date('2024-01-20T15:30:00')
+                }
+            ]);
+
+            const [newLead, setNewLead] = useState({
+                customerName: '',
+                phone: '',
+                email: '',
+                address: '',
+                serviceNeeded: '',
+                notes: ''
+            });
+
+            // Get leads by status
+            const getLeadsByStatus = (status) => leads.filter(lead => lead.status === status);
+            
+            // Get status info
+            const getStatusInfo = (status) => statusOptions.find(s => s.value === status);
+
+            // Check if lead needs reminder (older than 2 hours and not completed/canceled)
+            const needsReminder = (lead) => {
+                if (lead.status === 'completed' || lead.status === 'canceled') return false;
+                const hoursOld = (new Date() - new Date(lead.lastUpdated)) / (1000 * 60 * 60);
+                return hoursOld > 2;
+            };
+
+            // Get active leads count
+            const getActiveLeadsCount = () => {
+                return leads.filter(lead => 
+                    lead.status !== 'completed' && lead.status !== 'canceled'
+                ).length;
+            };
+
+            // Handle status change
+            const handleStatusChange = (leadId, newStatus) => {
+                setLeads(leads.map(lead => 
+                    lead.id === leadId 
+                        ? { ...lead, status: newStatus, lastUpdated: new Date() }
+                        : lead
+                ));
+            };
+
+            // Handle lead update
+            const handleLeadUpdate = (leadId, updates) => {
+                setLeads(leads.map(lead => 
+                    lead.id === leadId 
+                        ? { ...lead, ...updates, lastUpdated: new Date() }
+                        : lead
+                ));
+                setSelectedLead(null);
+            };
+
+            // Add new lead
+            const handleAddLead = () => {
+                if (newLead.customerName && newLead.phone && newLead.serviceNeeded) {
+                    const lead = {
+                        ...newLead,
+                        id: Math.max(...leads.map(l => l.id)) + 1,
+                        status: 'new',
+                        dateAdded: new Date(),
+                        lastUpdated: new Date(),
+                        appointmentDate: null,
+                        appointmentTime: '',
+                        technician: ''
+                    };
+                    setLeads([lead, ...leads]);
+                    setNewLead({
+                        customerName: '',
+                        phone: '',
+                        email: '',
+                        address: '',
+                        serviceNeeded: '',
+                        notes: ''
+                    });
+                    setShowAddLead(false);
+                }
+            };
+
+            // Analytics calculations
+            const getAnalytics = () => {
+                const today = new Date().toDateString();
+                const todayLeads = leads.filter(lead => 
+                    new Date(lead.dateAdded).toDateString() === today
+                );
+                
+                return {
+                    totalToday: todayLeads.length,
+                    bookedToday: todayLeads.filter(l => l.status === 'booked').length,
+                    completedToday: leads.filter(l => 
+                        l.status === 'completed' && 
+                        new Date(l.lastUpdated).toDateString() === today
+                    ).length,
+                    canceledToday: todayLeads.filter(l => l.status === 'canceled').length,
+                    activeLeads: getActiveLeadsCount()
+                };
+            };
+
+            const analytics = getAnalytics();
+
+            // Lead Card Component
+            const LeadCard = ({ lead }) => {
+                const statusInfo = getStatusInfo(lead.status);
+                const hasReminder = needsReminder(lead);
+                
+                return React.createElement('div', {
+                    className: "bg-white rounded-lg shadow-md border border-gray-200 p-4 hover:shadow-lg transition-shadow relative"
+                }, [
+                    hasReminder && React.createElement('div', {
+                        key: 'reminder',
+                        className: "absolute top-2 right-2"
+                    }, React.createElement(Bell, {
+                        className: "w-4 h-4 text-red-500 animate-pulse"
+                    })),
+                    
+                    React.createElement('div', {
+                        key: 'content',
+                        className: "space-y-3"
+                    }, [
+                        // Customer Info
+                        React.createElement('div', { key: 'customer' }, [
+                            React.createElement('h3', {
+                                key: 'name',
+                                className: "font-semibold text-gray-900 text-lg"
+                            }, lead.customerName),
+                            React.createElement('div', {
+                                key: 'phone',
+                                className: "flex items-center space-x-1 text-sm text-gray-600"
+                            }, [
+                                React.createElement(Phone, {
+                                    key: 'phone-icon',
+                                    className: "w-3 h-3"
+                                }),
+                                React.createElement('span', { key: 'phone-text' }, lead.phone)
+                            ]),
+                            lead.email && React.createElement('div', {
+                                key: 'email',
+                                className: "flex items-center space-x-1 text-sm text-gray-600"
+                            }, [
+                                React.createElement(Mail, {
+                                    key: 'email-icon',
+                                    className: "w-3 h-3"
+                                }),
+                                React.createElement('span', { key: 'email-text' }, lead.email)
+                            ])
+                        ]),
+
+                        // Service & Address
+                        React.createElement('div', { key: 'service' }, [
+                            React.createElement('p', {
+                                key: 'service-name',
+                                className: "font-medium text-gray-800"
+                            }, lead.serviceNeeded),
+                            lead.address && React.createElement('div', {
+                                key: 'address',
+                                className: "flex items-start space-x-1 text-sm text-gray-600"
+                            }, [
+                                React.createElement(MapPin, {
+                                    key: 'address-icon',
+                                    className: "w-3 h-3 mt-0.5 flex-shrink-0"
+                                }),
+                                React.createElement('span', {
+                                    key: 'address-text',
+                                    className: "line-clamp-2"
+                                }, lead.address)
+                            ])
+                        ]),
+
+                        // Appointment Info
+                        lead.appointmentDate && React.createElement('div', {
+                            key: 'appointment',
+                            className: "bg-green-50 p-2 rounded"
+                        }, [
+                            React.createElement('div', {
+                                key: 'apt-date',
+                                className: "flex items-center space-x-1 text-sm text-green-800"
+                            }, [
+                                React.createElement(Calendar, {
+                                    key: 'cal-icon',
+                                    className: "w-3 h-3"
+                                }),
+                                React.createElement('span', { key: 'apt-text' }, `${lead.appointmentDate} at ${lead.appointmentTime}`)
+                            ]),
+                            lead.technician && React.createElement('div', {
+                                key: 'tech',
+                                className: "flex items-center space-x-1 text-sm text-green-800"
+                            }, [
+                                React.createElement(User, {
+                                    key: 'user-icon',
+                                    className: "w-3 h-3"
+                                }),
+                                React.createElement('span', { key: 'tech-text' }, lead.technician)
+                            ])
+                        ]),
+
+                        // Notes
+                        lead.notes && React.createElement('p', {
+                            key: 'notes',
+                            className: "text-sm text-gray-600 bg-gray-50 p-2 rounded line-clamp-2"
+                        }, lead.notes),
+
+                        // Status Dropdown & Edit
+                        React.createElement('div', {
+                            key: 'controls',
+                            className: "flex items-center justify-between pt-2"
+                        }, [
+                            React.createElement('select', {
+                                key: 'status-select',
+                                value: lead.status,
+                                onChange: (e) => handleStatusChange(lead.id, e.target.value),
+                                className: `px-3 py-1 rounded-full text-sm font-medium ${statusInfo?.color} ${statusInfo?.textColor} border-none cursor-pointer`
+                            }, statusOptions.map(option => 
+                                React.createElement('option', {
+                                    key: option.value,
+                                    value: option.value,
+                                    className: "text-gray-900"
+                                }, option.label)
+                            )),
+                            
+                            React.createElement('button', {
+                                key: 'edit-btn',
+                                onClick: () => setSelectedLead(lead),
+                                className: "text-gray-400 hover:text-blue-500 transition-colors"
+                            }, React.createElement(Edit3, {
+                                className: "w-4 h-4"
+                            }))
+                        ]),
+
+                        // Time info
+                        React.createElement('div', {
+                            key: 'time-info',
+                            className: "text-xs text-gray-400 flex items-center space-x-1"
+                        }, [
+                            React.createElement(Clock, {
+                                key: 'clock-icon',
+                                className: "w-3 h-3"
+                            }),
+                            React.createElement('span', { key: 'time-text' }, `Added ${new Date(lead.dateAdded).toLocaleString()}`)
+                        ])
+                    ])
+                ]);
+            };
+
+            // Navigation
+            const navItems = [
+                { id: 'dashboard', label: 'Dashboard', icon: Home },
+                { id: 'new', label: 'New Leads', icon: AlertCircle, count: getLeadsByStatus('new').length },
+                { id: 'waiting-customer', label: 'Waiting for Customer', icon: Phone, count: getLeadsByStatus('waiting-customer').length },
+                { id: 'waiting-tech', label: 'Waiting for Tech', icon: Users, count: getLeadsByStatus('waiting-tech').length },
+                { id: 'booked', label: 'Appointment Booked', icon: Calendar, count: getLeadsByStatus('booked').length },
+                { id: 'rescheduled', label: 'Rescheduled', icon: RotateCcw, count: getLeadsByStatus('rescheduled').length },
+                { id: 'completed', label: 'Completed', icon: CheckCircle, count: getLeadsByStatus('completed').length },
+                { id: 'canceled', label: 'Canceled', icon: XCircle, count: getLeadsByStatus('canceled').length },
+                { id: 'analytics', label: 'Analytics', icon: BarChart3 }
+            ];
+
+            return React.createElement('div', {
+                className: "min-h-screen bg-gray-50"
+            }, [
+                // Header
+                React.createElement('header', {
+                    key: 'header',
+                    className: "bg-white shadow-sm border-b"
+                }, React.createElement('div', {
+                    className: "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+                }, React.createElement('div', {
+                    className: "flex justify-between items-center py-4"
+                }, [
+                    React.createElement('div', {
+                        key: 'header-left',
+                        className: "flex items-center space-x-3"
+                    }, [
+                        React.createElement('div', {
+                            key: 'logo',
+                            className: "w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center"
+                        }, React.createElement(Phone, {
+                            className: "w-5 h-5 text-white"
+                        })),
+                        React.createElement('h1', {
+                            key: 'title',
+                            className: "text-xl font-bold text-gray-900"
+                        }, 'Lead Generation CRM')
+                    ]),
+                    
+                    React.createElement('div', {
+                        key: 'header-right',
+                        className: "flex items-center space-x-4"
+                    }, [
+                        React.createElement('div', {
+                            key: 'reminders',
+                            className: "flex items-center space-x-2 text-sm text-gray-600"
+                        }, [
+                            React.createElement(Bell, {
+                                key: 'bell-icon',
+                                className: "w-4 h-4"
+                            }),
+                            React.createElement('span', { key: 'reminder-text' }, `${leads.filter(needsReminder).length} reminders`)
+                        ]),
+                        
+                        React.createElement('button', {
+                            key: 'add-btn',
+                            onClick: () => setShowAddLead(true),
+                            className: "bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-blue-700 transition-colors"
+                        }, [
+                            React.createElement(Plus, {
+                                key: 'plus-icon',
+                                className: "w-4 h-4"
+                            }),
+                            React.createElement('span', { key: 'add-text' }, 'Add Lead')
+                        ])
+                    ])
+                ]))),
+
+                React.createElement('div', {
+                    key: 'main',
+                    className: "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
+                }, React.createElement('div', {
+                    className: "flex space-x-6"
+                }, [
+                    // Sidebar
+                    React.createElement('div', {
+                        key: 'sidebar',
+                        className: "w-64 flex-shrink-0"
+                    }, React.createElement('nav', {
+                        className: "bg-white rounded-lg shadow-sm border p-4"
+                    }, React.createElement('ul', {
+                        className: "space-y-2"
+                    }, navItems.map(item => {
+                        const Icon = item.icon;
+                        return React.createElement('li', { key: item.id }, 
+                            React.createElement('button', {
+                                onClick: () => setActiveTab(item.id),
+                                className: `w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                                    activeTab === item.id
+                                        ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                }`
+                            }, [
+                                React.createElement('div', {
+                                    key: 'nav-left',
+                                    className: "flex items-center space-x-2"
+                                }, [
+                                    React.createElement(Icon, {
+                                        key: 'nav-icon',
+                                        className: "w-4 h-4"
+                                    }),
+                                    React.createElement('span', { key: 'nav-label' }, item.label)
+                                ]),
+                                item.count !== undefined && item.count > 0 && React.createElement('span', {
+                                    key: 'nav-count',
+                                    className: `px-2 py-1 text-xs rounded-full ${
+                                        activeTab === item.id ? 'bg-blue-200 text-blue-800' : 'bg-gray-200 text-gray-600'
+                                    }`
+                                }, item.count)
+                            ])
+                        );
+                    })))),
+
+                    // Main Content
+                    React.createElement('div', {
+                        key: 'content',
+                        className: "flex-1"
+                    }, [
+                        // Dashboard content
+                        activeTab === 'dashboard' && React.createElement('div', {
+                            key: 'dashboard',
+                            className: "space-y-6"
+                        }, [
+                            // Stats
+                            React.createElement('div', {
+                                key: 'stats',
+                                className: "grid grid-cols-1 md:grid-cols-5 gap-4"
+                            }, [
+                                React.createElement('div', {
+                                    key: 'stat-1',
+                                    className: "bg-white p-4 rounded-lg shadow-sm border"
+                                }, [
+                                    React.createElement('div', {
+                                        key: 'stat-1-value',
+                                        className: "text-2xl font-bold text-blue-600"
+                                    }, analytics.totalToday),
+                                    React.createElement('div', {
+                                        key: 'stat-1-label',
+                                        className: "text-sm text-gray-600"
+                                    }, 'New Today')
+                                ]),
+                                React.createElement('div', {
+                                    key: 'stat-2',
+                                    className: "bg-white p-4 rounded-lg shadow-sm border"
+                                }, [
+                                    React.createElement('div', {
+                                        key: 'stat-2-value',
+                                        className: "text-2xl font-bold text-green-600"
+                                    }, analytics.bookedToday),
+                                    React.createElement('div', {
+                                        key: 'stat-2-label',
+                                        className: "text-sm text-gray-600"
+                                    }, 'Booked Today')
+                                ]),
+                                React.createElement('div', {
+                                    key: 'stat-3',
+                                    className: "bg-white p-4 rounded-lg shadow-sm border"
+                                }, [
+                                    React.createElement('div', {
+                                        key: 'stat-3-value',
+                                        className: "text-2xl font-bold text-gray-600"
+                                    }, analytics.completedToday),
+                                    React.createElement('div', {
+                                        key: 'stat-3-label',
+                                        className: "text-sm text-gray-600"
+                                    }, 'Completed Today')
+                                ]),
+                                React.createElement('div', {
+                                    key: 'stat-4',
+                                    className: "bg-white p-4 rounded-lg shadow-sm border"
+                                }, [
+                                    React.createElement('div', {
+                                        key: 'stat-4-value',
+                                        className: "text-2xl font-bold text-red-600"
+                                    }, analytics.canceledToday),
+                                    React.createElement('div', {
+                                        key: 'stat-4-label',
+                                        className: "text-sm text-gray-600"
+                                    }, 'Canceled Today')
+                                ]),
+                                React.createElement('div', {
+                                    key: 'stat-5',
+                                    className: "bg-white p-4 rounded-lg shadow-sm border"
+                                }, [
+                                    React.createElement('div', {
+                                        key: 'stat-5-value',
+                                        className: "text-2xl font-bold text-orange-600"
+                                    }, analytics.activeLeads),
+                                    React.createElement('div', {
+                                        key: 'stat-5-label',
+                                        className: "text-sm text-gray-600"
+                                    }, 'Active Leads')
+                                ])
+                            ]),
+
+                            // Recent Activity
+                            React.createElement('div', {
+                                key: 'recent',
+                                className: "bg-white rounded-lg shadow-sm border"
+                            }, [
+                                React.createElement('div', {
+                                    key: 'recent-header',
+                                    className: "p-4 border-b"
+                                }, React.createElement('h2', {
+                                    className: "text-lg font-semibold text-gray-900"
+                                }, 'Recent Leads')),
+                                React.createElement('div', {
+                                    key: 'recent-grid',
+                                    className: "p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                                }, leads.slice(0, 6).map(lead => 
+                                    React.createElement(LeadCard, { key: lead.id, lead })
+                                ))
+                            ])
+                        ]),
+
+                        // Analytics content
+                        activeTab === 'analytics' && React.createElement('div', {
+                            key: 'analytics-content',
+                            className: "bg-white rounded-lg shadow-sm border"
+                        }, [
+                            React.createElement('div', {
+                                key: 'analytics-header',
+                                className: "p-6 border-b"
+                            }, React.createElement('h2', {
+                                className: "text-xl font-semibold text-gray-900"
+                            }, 'Analytics Dashboard')),
+                            React.createElement('div', {
+                                key: 'analytics-body',
+                                className: "p-6"
+                            }, [
+                                React.createElement('div', {
+                                    key: 'analytics-stats',
+                                    className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+                                }, [
+                                    React.createElement('div', {
+                                        key: 'analytics-1',
+                                        className: "text-center"
+                                    }, [
+                                        React.createElement('div', {
+                                            key: 'analytics-1-value',
+                                            className: "text-3xl font-bold text-blue-600"
+                                        }, analytics.totalToday),
+                                        React.createElement('div', {
+                                            key: 'analytics-1-label',
+                                            className: "text-gray-600"
+                                        }, 'New Leads Today')
+                                    ]),
+                                    React.createElement('div', {
+                                        key: 'analytics-2',
+                                        className: "text-center"
+                                    }, [
+                                        React.createElement('div', {
+                                            key: 'analytics-2-value',
+                                            className: "text-3xl font-bold text-green-600"
+                                        }, analytics.bookedToday),
+                                        React.createElement('div', {
+                                            key: 'analytics-2-label',
+                                            className: "text-gray-600"
+                                        }, 'Appointments Booked Today')
+                                    ]),
+                                    React.createElement('div', {
+                                        key: 'analytics-3',
+                                        className: "text-center"
+                                    }, [
+                                        React.createElement('div', {
+                                            key: 'analytics-3-value',
+                                            className: "text-3xl font-bold text-gray-600"
+                                        }, analytics.completedToday),
+                                        React.createElement('div', {
+                                            key: 'analytics-3-label',
+                                            className: "text-gray-600"
+                                        }, 'Jobs Completed Today')
+                                    ]),
+                                    React.createElement('div', {
+                                        key: 'analytics-4',
+                                        className: "text-center"
+                                    }, [
+                                        React.createElement('div', {
+                                            key: 'analytics-4-value',
+                                            className: "text-3xl font-bold text-orange-600"
+                                        }, analytics.activeLeads),
+                                        React.createElement('div', {
+                                            key: 'analytics-4-label',
+                                            className: "text-gray-600"
+                                        }, 'Active Leads in Pipeline')
+                                    ])
+                                ]),
+                                
+                                React.createElement('div', {
+                                    key: 'pipeline-overview',
+                                    className: "mt-8"
+                                }, [
+                                    React.createElement('h3', {
+                                        key: 'pipeline-title',
+                                        className: "text-lg font-medium text-gray-900 mb-4"
+                                    }, 'Pipeline Overview'),
+                                    React.createElement('div', {
+                                        key: 'pipeline-list',
+                                        className: "space-y-3"
+                                    }, statusOptions.filter(status => status.value !== 'completed' && status.value !== 'canceled').map(status => {
+                                        const count = getLeadsByStatus(status.value).length;
+                                        return React.createElement('div', {
+                                            key: status.value,
+                                            className: "flex items-center justify-between p-3 bg-gray-50 rounded"
+                                        }, [
+                                            React.createElement('span', {
+                                                key: 'status-label',
+                                                className: "font-medium"
+                                            }, status.label),
+                                            React.createElement('span', {
+                                                key: 'status-count',
+                                                className: `px-3 py-1 rounded-full text-white text-sm ${status.color}`
+                                            }, `${count} leads`)
+                                        ]);
+                                    }))
+                                ])
+                            ])
+                        ]),
+
+                        // Status-specific pages
+                        activeTab !== 'dashboard' && activeTab !== 'analytics' && React.createElement('div', {
+                            key: 'status-page',
+                            className: "space-y-6"
+                        }, [
+                            React.createElement('div', {
+                                key: 'status-header',
+                                className: "flex items-center justify-between"
+                            }, [
+                                React.createElement('h2', {
+                                    key: 'status-title',
+                                    className: "text-2xl font-bold text-gray-900"
+                                }, statusOptions.find(s => s.value === activeTab)?.label || 'Leads'),
+                                React.createElement('div', {
+                                    key: 'status-count',
+                                    className: "text-sm text-gray-500"
+                                }, `${getLeadsByStatus(activeTab).length} leads`)
+                            ]),
+                            
+                            React.createElement('div', {
+                                key: 'status-grid',
+                                className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                            }, getLeadsByStatus(activeTab).map(lead => 
+                                React.createElement(LeadCard, { key: lead.id, lead })
+                            )),
+                            
+                            getLeadsByStatus(activeTab).length === 0 && React.createElement('div', {
+                                key: 'empty-state',
+                                className: "bg-white rounded-lg shadow-sm border p-12 text-center"
+                            }, [
+                                React.createElement('div', {
+                                    key: 'empty-icon',
+                                    className: "text-gray-400 mb-4"
+                                }, React.createElement(AlertCircle, {
+                                    className: "w-12 h-12 mx-auto"
+                                })),
+                                React.createElement('h3', {
+                                    key: 'empty-title',
+                                    className: "text-lg font-medium text-gray-900 mb-2"
+                                }, 'No leads found'),
+                                React.createElement('p', {
+                                    key: 'empty-desc',
+                                    className: "text-gray-500"
+                                }, 'There are no leads in this status yet.')
+                            ])
+                        ])
+                    ])
+                ]))
+            ]);
+
+            // Add Lead Modal
+            const AddLeadModal = () => {
+                if (!showAddLead) return null;
+
+                return React.createElement('div', {
+                    className: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+                }, React.createElement('div', {
+                    className: "bg-white rounded-lg max-w-md w-full p-6"
+                }, [
+                    React.createElement('h3', {
+                        key: 'modal-title',
+                        className: "text-lg font-semibold text-gray-900 mb-4"
+                    }, 'Add New Lead'),
+                    
+                    React.createElement('div', {
+                        key: 'modal-form',
+                        className: "space-y-4"
+                    }, [
+                        React.createElement('div', { key: 'field-1' }, [
+                            React.createElement('label', {
+                                key: 'label-1',
+                                className: "block text-sm font-medium text-gray-700 mb-1"
+                            }, 'Customer Name *'),
+                            React.createElement('input', {
+                                key: 'input-1',
+                                type: "text",
+                                value: newLead.customerName,
+                                onChange: (e) => setNewLead({...newLead, customerName: e.target.value}),
+                                className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            })
+                        ]),
+                        
+                        React.createElement('div', { key: 'field-2' }, [
+                            React.createElement('label', {
+                                key: 'label-2',
+                                className: "block text-sm font-medium text-gray-700 mb-1"
+                            }, 'Phone *'),
+                            React.createElement('input', {
+                                key: 'input-2',
+                                type: "tel",
+                                value: newLead.phone,
+                                onChange: (e) => setNewLead({...newLead, phone: e.target.value}),
+                                className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            })
+                        ]),
+                        
+                        React.createElement('div', { key: 'field-3' }, [
+                            React.createElement('label', {
+                                key: 'label-3',
+                                className: "block text-sm font-medium text-gray-700 mb-1"
+                            }, 'Email'),
+                            React.createElement('input', {
+                                key: 'input-3',
+                                type: "email",
+                                value: newLead.email,
+                                onChange: (e) => setNewLead({...newLead, email: e.target.value}),
+                                className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            })
+                        ]),
+                        
+                        React.createElement('div', { key: 'field-4' }, [
+                            React.createElement('label', {
+                                key: 'label-4',
+                                className: "block text-sm font-medium text-gray-700 mb-1"
+                            }, 'Service Needed *'),
+                            React.createElement('input', {
+                                key: 'input-4',
+                                type: "text",
+                                value: newLead.serviceNeeded,
+                                onChange: (e) => setNewLead({...newLead, serviceNeeded: e.target.value}),
+                                placeholder: "e.g. HVAC Repair, Plumbing, Electrical",
+                                className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            })
+                        ]),
+                        
+                        React.createElement('div', { key: 'field-5' }, [
+                            React.createElement('label', {
+                                key: 'label-5',
+                                className: "block text-sm font-medium text-gray-700 mb-1"
+                            }, 'Address'),
+                            React.createElement('input', {
+                                key: 'input-5',
+                                type: "text",
+                                value: newLead.address,
+                                onChange: (e) => setNewLead({...newLead, address: e.target.value}),
+                                className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            })
+                        ]),
+                        
+                        React.createElement('div', { key: 'field-6' }, [
+                            React.createElement('label', {
+                                key: 'label-6',
+                                className: "block text-sm font-medium text-gray-700 mb-1"
+                            }, 'Notes'),
+                            React.createElement('textarea', {
+                                key: 'input-6',
+                                value: newLead.notes,
+                                onChange: (e) => setNewLead({...newLead, notes: e.target.value}),
+                                rows: 3,
+                                className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            })
+                        ])
+                    ]),
+                    
+                    React.createElement('div', {
+                        key: 'modal-buttons',
+                        className: "flex justify-end space-x-3 mt-6"
+                    }, [
+                        React.createElement('button', {
+                            key: 'cancel-btn',
+                            onClick: () => setShowAddLead(false),
+                            className: "px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                        }, 'Cancel'),
+                        React.createElement('button', {
+                            key: 'save-btn',
+                            onClick: handleAddLead,
+                            className: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                        }, 'Add Lead')
+                    ])
+                ]));
+            };
+
+            // Edit Lead Modal
+            const EditLeadModal = () => {
+                if (!selectedLead) return null;
+
+                return React.createElement('div', {
+                    className: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+                }, React.createElement('div', {
+                    className: "bg-white rounded-lg max-w-md w-full p-6 max-h-screen overflow-y-auto"
+                }, [
+                    React.createElement('h3', {
+                        key: 'edit-title',
+                        className: "text-lg font-semibold text-gray-900 mb-4"
+                    }, 'Edit Lead'),
+                    
+                    React.createElement('div', {
+                        key: 'edit-form',
+                        className: "space-y-4"
+                    }, [
+                        React.createElement('div', { key: 'edit-field-1' }, [
+                            React.createElement('label', {
+                                key: 'edit-label-1',
+                                className: "block text-sm font-medium text-gray-700 mb-1"
+                            }, 'Customer Name'),
+                            React.createElement('input', {
+                                key: 'edit-input-1',
+                                type: "text",
+                                value: selectedLead.customerName,
+                                onChange: (e) => setSelectedLead({...selectedLead, customerName: e.target.value}),
+                                className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            })
+                        ]),
+                        
+                        React.createElement('div', { key: 'edit-field-2' }, [
+                            React.createElement('label', {
+                                key: 'edit-label-2',
+                                className: "block text-sm font-medium text-gray-700 mb-1"
+                            }, 'Phone'),
+                            React.createElement('input', {
+                                key: 'edit-input-2',
+                                type: "tel",
+                                value: selectedLead.phone,
+                                onChange: (e) => setSelectedLead({...selectedLead, phone: e.target.value}),
+                                className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            })
+                        ]),
+                        
+                        React.createElement('div', { key: 'edit-field-3' }, [
+                            React.createElement('label', {
+                                key: 'edit-label-3',
+                                className: "block text-sm font-medium text-gray-700 mb-1"
+                            }, 'Email'),
+                            React.createElement('input', {
+                                key: 'edit-input-3',
+                                type: "email",
+                                value: selectedLead.email,
+                                onChange: (e) => setSelectedLead({...selectedLead, email: e.target.value}),
+                                className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            })
+                        ]),
+                        
+                        React.createElement('div', { key: 'edit-field-4' }, [
+                            React.createElement('label', {
+                                key: 'edit-label-4',
+                                className: "block text-sm font-medium text-gray-700 mb-1"
+                            }, 'Service Needed'),
+                            React.createElement('input', {
+                                key: 'edit-input-4',
+                                type: "text",
+                                value: selectedLead.serviceNeeded,
+                                onChange: (e) => setSelectedLead({...selectedLead, serviceNeeded: e.target.value}),
+                                className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            })
+                        ]),
+                        
+                        React.createElement('div', { key: 'edit-field-5' }, [
+                            React.createElement('label', {
+                                key: 'edit-label-5',
+                                className: "block text-sm font-medium text-gray-700 mb-1"
+                            }, 'Address'),
+                            React.createElement('input', {
+                                key: 'edit-input-5',
+                                type: "text",
+                                value: selectedLead.address,
+                                onChange: (e) => setSelectedLead({...selectedLead, address: e.target.value}),
+                                className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            })
+                        ]),
+                        
+                        React.createElement('div', { key: 'edit-field-6' }, [
+                            React.createElement('label', {
+                                key: 'edit-label-6',
+                                className: "block text-sm font-medium text-gray-700 mb-1"
+                            }, 'Technician'),
+                            React.createElement('select', {
+                                key: 'edit-input-6',
+                                value: selectedLead.technician,
+                                onChange: (e) => setSelectedLead({...selectedLead, technician: e.target.value}),
+                                className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            }, [
+                                React.createElement('option', {
+                                    key: 'tech-default',
+                                    value: ""
+                                }, 'Select Technician'),
+                                ...technicians.map(tech => 
+                                    React.createElement('option', {
+                                        key: tech,
+                                        value: tech
+                                    }, tech)
+                                )
+                            ])
+                        ]),
+                        
+                        React.createElement('div', { key: 'edit-field-7' }, [
+                            React.createElement('label', {
+                                key: 'edit-label-7',
+                                className: "block text-sm font-medium text-gray-700 mb-1"
+                            }, 'Appointment Date'),
+                            React.createElement('input', {
+                                key: 'edit-input-7',
+                                type: "date",
+                                value: selectedLead.appointmentDate || '',
+                                onChange: (e) => setSelectedLead({...selectedLead, appointmentDate: e.target.value}),
+                                className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            })
+                        ]),
+                        
+                        React.createElement('div', { key: 'edit-field-8' }, [
+                            React.createElement('label', {
+                                key: 'edit-label-8',
+                                className: "block text-sm font-medium text-gray-700 mb-1"
+                            }, 'Appointment Time'),
+                            React.createElement('input', {
+                                key: 'edit-input-8',
+                                type: "time",
+                                value: selectedLead.appointmentTime,
+                                onChange: (e) => setSelectedLead({...selectedLead, appointmentTime: e.target.value}),
+                                className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            })
+                        ]),
+                        
+                        React.createElement('div', { key: 'edit-field-9' }, [
+                            React.createElement('label', {
+                                key: 'edit-label-9',
+                                className: "block text-sm font-medium text-gray-700 mb-1"
+                            }, 'Notes'),
+                            React.createElement('textarea', {
+                                key: 'edit-input-9',
+                                value: selectedLead.notes,
+                                onChange: (e) => setSelectedLead({...selectedLead, notes: e.target.value}),
+                                rows: 3,
+                                className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            })
+                        ]),
+                        
+                        React.createElement('div', { key: 'edit-field-10' }, [
+                            React.createElement('label', {
+                                key: 'edit-label-10',
+                                className: "block text-sm font-medium text-gray-700 mb-1"
+                            }, 'Status'),
+                            React.createElement('select', {
+                                key: 'edit-input-10',
+                                value: selectedLead.status,
+                                onChange: (e) => setSelectedLead({...selectedLead, status: e.target.value}),
+                                className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            }, statusOptions.map(option => 
+                                React.createElement('option', {
+                                    key: option.value,
+                                    value: option.value
+                                }, option.label)
+                            ))
+                        ])
+                    ]),
+                    
+                    React.createElement('div', {
+                        key: 'edit-buttons',
+                        className: "flex justify-end space-x-3 mt-6"
+                    }, [
+                        React.createElement('button', {
+                            key: 'edit-cancel',
+                            onClick: () => setSelectedLead(null),
+                            className: "px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                        }, 'Cancel'),
+                        React.createElement('button', {
+                            key: 'edit-save',
+                            onClick: () => handleLeadUpdate(selectedLead.id, selectedLead),
+                            className: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                        }, 'Save Changes')
+                    ])
+                ]));
+            };
+
+            return React.createElement('div', null, [
+                React.createElement(LeadGenCRM, { key: 'main-app' }),
+                React.createElement(AddLeadModal, { key: 'add-modal' }),
+                React.createElement(EditLeadModal, { key: 'edit-modal' })
+            ]);
+        };
+
+        ReactDOM.render(React.createElement(LeadGenCRM), document.getElementById('root'));
+    </script>
+</body>
+</html>
+                
